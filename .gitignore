@@ -1,0 +1,9 @@
+*.pt
+*.pth
+data/*.tar.gz
+data/oxford_pets
+data/cifar-10-batches-py
+data/cifar-100-python
+models/detectors/datasets/coco128
+models/detectors/datasets/VOC
+__pycache__
