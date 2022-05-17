@@ -40,4 +40,4 @@ python3 train_cifar_10.py \
     --epochs 350 \
     --lr 0.0005 \
     --batchsize 1024 \
-    --model msa_darknet53_2
+    --model msa_darknet53

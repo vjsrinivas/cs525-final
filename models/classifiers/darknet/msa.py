@@ -39,6 +39,9 @@ class Attention2d(nn.Module):
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', y=y)
 
+        # if not self.training:
+        #     self.post_attn = out
+
         out = self.to_out(out)
 
         return out, attn
@@ -103,13 +106,16 @@ class AttentionBlockA(nn.Module):
         self.attn = attn(width, dim_out * self.expansion, heads=heads, dim_head=dim_head, dropout=dropout)
         self.norm = norm(dim_out * self.expansion)
         self.sd = DropPath(sd) if sd > 0.0 else nn.Identity()
-
+        
     def forward(self, x):
         skip = self.shortcut(x)
         x = self.conv(x)
         x, attn = self.attn(x)
         x = self.norm(x)
         x = self.sd(x) + skip
+
+        if not self.training:
+            self.attn_output = attn
 
         return x
 

@@ -174,7 +174,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
-    ema = ModelEMA(model) if RANK in [-1, 0] else None
+    ema = ModelEMA(model) if RANK in [-1, 0] or opt.noema else None
 
     # Resume
     start_epoch, best_fitness = 0, 0.0
@@ -211,9 +211,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         LOGGER.info('Using SyncBatchNorm()')
 
     # Trainloader
-    should_aug = not opt.noaug
     train_loader, dataset = create_dataloader(train_path, imgsz, batch_size // WORLD_SIZE, gs, single_cls,
-                                              hyp=hyp, augment=should_aug, cache=opt.cache, rect=opt.rect, rank=LOCAL_RANK,
+                                              hyp=hyp, augment=opt.noaug, cache=opt.cache, rect=opt.rect, rank=LOCAL_RANK,
                                               workers=workers, image_weights=opt.image_weights, quad=opt.quad,
                                               prefix=colorstr('train: '), shuffle=True)
     mlc = int(np.concatenate(dataset.labels, 0)[:, 0].max())  # max label class
@@ -479,7 +478,8 @@ def parse_opt(known=False):
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
 
     # add:
-    parser.add_argument('--noaug', action='store_true')
+    parser.add_argument('--noaug', action='store_false')
+    parser.add_argument('--noema', action='store_false')
 
     # Weights & Biases arguments
     parser.add_argument('--entity', default=None, help='W&B: Entity')

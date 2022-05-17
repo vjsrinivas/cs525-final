@@ -34,6 +34,25 @@ from utils.general import (LOGGER, check_file, check_img_size, check_imshow, che
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, time_sync
 
+# VIZ STUFF:
+import matplotlib.pyplot as plt
+import torch.nn.functional as F
+import numpy as np
+
+def viz_hook(m, i, o):
+    print(m.attn_output.shape)
+    _heads = m.attn_output.clone()
+    #_heads = torch.mean(_heads, dim=1)
+    _heads = torch.max(_heads, dim=1)[0]
+    _heads = _heads.transpose(0,1)
+    _heads = _heads.transpose(1,2)
+    #print(_heads.shape)
+    #plt.imshow(_heads)
+    #plt.savefig("viz_attn.png")
+    #global VIZ_OUT
+    VIZ_OUT = _heads
+    #print(i)
+    #print(o)
 
 @torch.no_grad()
 def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
@@ -56,12 +75,16 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
         project=ROOT / 'runs/detect',  # save results to project/name
         name='exp',  # save results to project/name
         exist_ok=False,  # existing project/name ok, do not increment
-        line_thickness=3,  # bounding box thickness (pixels)
+        line_thickness=2,  # bounding box thickness (pixels)
         hide_labels=False,  # hide labels
         hide_conf=False,  # hide confidences
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
+        prefix="",
+        attn_loc=-1
         ):
+
+    assert attn_loc != -1
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -71,12 +94,17 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
         source = check_file(source)  # download
 
     # Directories
-    save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
-    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    #save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
+    #(save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Load model
     device = select_device(device)
     model = DetectMultiBackend(weights, device=device, dnn=dnn)
+    #print(model.__dict__['model'].model)
+    #exit()
+    #model.__dict__['model'].model[14].register_forward_hook(viz_hook)
+
+
     stride, names, pt, jit, onnx = model.stride, model.names, model.pt, model.jit, model.onnx
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
@@ -89,10 +117,10 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
     if webcam:
         view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt and not jit)
+        dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=False)
         bs = len(dataset)  # batch_size
     else:
-        dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt and not jit)
+        dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=False)
         bs = 1  # batch_size
     vid_path, vid_writer = [None] * bs, [None] * bs
 
@@ -100,6 +128,7 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
     if pt and device.type != 'cpu':
         model(torch.zeros(1, 3, *imgsz).to(device).type_as(next(model.model.parameters())))  # warmup
     dt, seen = [0.0, 0.0, 0.0], 0
+
     for path, im, im0s, vid_cap, s in dataset:
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
@@ -111,8 +140,32 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
         dt[0] += t2 - t1
 
         # Inference
-        visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
-        pred = model(im, augment=augment, visualize=visualize)
+        pred = model(im, augment=False)
+        VIZ_OUT = model.__dict__['model'].model[attn_loc].attn_output.clone()
+        #VIZ_OUT = model.__dict__['model'].model[attn_loc].attn.attn.post_attn.clone()
+        #VIZ_OUT = F.interpolate(VIZ_OUT, (13,13))
+        VIZ_OUT = torch.max(VIZ_OUT, dim=1)[0]
+        VIZ_OUT = VIZ_OUT.transpose(0,1)
+        VIZ_OUT = VIZ_OUT.transpose(1,2)
+        # save original VIZ_OUT:
+        _viz_name = path.split('/')[-1].replace('.jpg', '')
+        _np_VIZ_OUT = VIZ_OUT.numpy()
+        _np_VIZ_OUT = _np_VIZ_OUT.squeeze()
+        print(_np_VIZ_OUT.shape)
+        np.save("runs/viz/%s_%s_original.npy"%(_viz_name, prefix), _np_VIZ_OUT)
+
+        # resize VIZ_OUT to fit original image:
+        # realign VIZ_OUT before resizing:
+        VIZ_OUT = VIZ_OUT.transpose(1,2)
+        VIZ_OUT = VIZ_OUT.transpose(0,1)
+        VIZ_OUT = torch.unsqueeze(VIZ_OUT, dim=0)
+        _np_VIZ_OUT_UPSAMPLED = F.interpolate(VIZ_OUT, (im0s.shape[0], im0s.shape[1]))
+        _np_VIZ_OUT_UPSAMPLED = _np_VIZ_OUT_UPSAMPLED.squeeze(dim=0)
+        _np_VIZ_OUT_UPSAMPLED = _np_VIZ_OUT_UPSAMPLED.squeeze(dim=0)
+        print(_np_VIZ_OUT_UPSAMPLED.shape)
+        _np_VIZ_OUT_UPSAMPLED = _np_VIZ_OUT_UPSAMPLED.numpy()
+        np.save("runs/viz/%s_%s_upsampled.npy"%(_viz_name, prefix), _np_VIZ_OUT_UPSAMPLED)
+
         t3 = time_sync()
         dt[1] += t3 - t2
 
@@ -133,8 +186,6 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
                 p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # im.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
@@ -150,18 +201,10 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
-
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
                         annotator.box_label(xyxy, label, color=colors(c, True))
-                        if save_crop:
-                            save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
             # Print time (inference-only)
             LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
@@ -175,30 +218,12 @@ def run(weights=ROOT / 'yolov3.pt',  # model.pt path(s)
             # Save results (image with detections)
             if save_img:
                 if dataset.mode == 'image':
-                    cv2.imwrite(save_path, im0)
-                else:  # 'video' or 'stream'
-                    if vid_path[i] != save_path:  # new video
-                        vid_path[i] = save_path
-                        if isinstance(vid_writer[i], cv2.VideoWriter):
-                            vid_writer[i].release()  # release previous video writer
-                        if vid_cap:  # video
-                            fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        else:  # stream
-                            fps, w, h = 30, im0.shape[1], im0.shape[0]
-                            save_path += '.mp4'
-                        vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer[i].write(im0)
+                    #cv2.imwrite('viz_rgb.png', im0)
+                    np.save("runs/viz/%s_%s_image.npy"%(_viz_name, prefix),im0)
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
     LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
-    if update:
-        strip_optimizer(weights)  # update model (to fix SourceChangeWarning)
 
 
 def parse_opt():
@@ -228,6 +253,8 @@ def parse_opt():
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     parser.add_argument('--dnn', action='store_true', help='use OpenCV DNN for ONNX inference')
+    parser.add_argument('--prefix', type=str)
+    parser.add_argument('--attn_loc', type=int)
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     print_args(FILE.stem, opt)

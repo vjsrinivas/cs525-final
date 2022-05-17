@@ -21,7 +21,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from models.classifiers.darknet.darknet53 import Darknet53
 from models.classifiers.darknet.darknet53_msa import Darknet53 as MSADarknet53
-from models.classifiers.darknet.darknet53_msa_2 import Darknet53 as MSADarknet53_2
+#from models.classifiers.darknet.darknet53_msa_2 import Darknet53 as MSADarknet53_2
 
 #torch.backends.cudnn.enabled = False # don't use for inferencing only
 
@@ -123,6 +123,15 @@ def train(model, opt):
     cosine_annealing_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs)
     scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=5, after_scheduler=cosine_annealing_scheduler)
     
+    # # plot scheduler:
+    # _test = []
+    # for epoch in range(350):
+    #     _test.append(scheduler.get_lr()[0])
+    #     scheduler.step(epoch)
+    # print(_test)
+    # np.save('./graph_scripts/lr_dk53.npy', np.array(_test))
+    # exit()
+
     #multistepLR = torch.optim.lr_scheduler.MultiStepLR(optimizer, [500,550,600])
     #scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=1, after_scheduler=multistepLR)
     #cosine_annealing_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
