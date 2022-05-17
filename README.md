@@ -22,3 +22,9 @@ We've made simple scripts to run the following trainings:
 
 For Darknet53-based training, simply just run the following command:
 ``python3 train_cifar_10.py``
+
+## Experiment Weights
+
+You can download the weights of both Darknet53 and YOLOv3 MSAs here:
+- Darknet53 weights: [https://drive.google.com/file/d/18I9rKvCbNlT07gq_MnHnEP-B25DDNgUr/view?usp=sharing](https://drive.google.com/file/d/18I9rKvCbNlT07gq_MnHnEP-B25DDNgUr/view?usp=sharing)
+- YOLOv3 weights: [https://drive.google.com/file/d/1zu9f8MgcuDUEygQmeScDHtN9O9Mwffqo/view?usp=sharing](https://drive.google.com/file/d/18I9rKvCbNlT07gq_MnHnEP-B25DDNgUr/view?usp=sharing)
