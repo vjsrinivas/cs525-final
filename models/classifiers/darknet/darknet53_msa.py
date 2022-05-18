@@ -86,13 +86,10 @@ class Darknet53(nn.Module):
         out = self.residual_block3(out)
         out = self.attention_block3(out)
 
-        print(self.conv5)
         out = self.conv5(out)
         out = self.residual_block4(out)
         out = self.attention_block4(out)
-        print(out.shape)
-        exit()
-        
+
         out = self.conv6(out)
         out = self.residual_block5(out)
         out = self.attention_block5(out)
