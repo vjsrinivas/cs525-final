@@ -1,3 +1,6 @@
+# THIS GRAPHING CODE TAKES IN CSV FILES FOR ALL THE mAP FUNCTIONS FOR EACH NETWORK:
+# YOLOv3 and YOLOv3 MSA 1,2,3,4
+
 import matplotlib.pyplot as plt
 import pandas
 import os 
@@ -30,7 +33,6 @@ ax_list[0].set_ylabel('mAP @ 0.5')
 ax_list[0].set_xlabel('Epochs')
 ax_list[1].set_ylabel('mAP @ 0.5')
 ax_list[1].set_xlabel('Epochs')
-#plt.yscale('log')
 plt.tight_layout()
 plt.savefig('./graphs/all_dog_maps.png')
 

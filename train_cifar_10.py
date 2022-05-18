@@ -21,9 +21,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 from models.classifiers.darknet.darknet53 import Darknet53
 from models.classifiers.darknet.darknet53_msa import Darknet53 as MSADarknet53
-#from models.classifiers.darknet.darknet53_msa_2 import Darknet53 as MSADarknet53_2
-
-#torch.backends.cudnn.enabled = False # don't use for inferencing only
 
 def parseArgs():
     parser = argparse.ArgumentParser()
@@ -35,6 +32,7 @@ def parseArgs():
     parser.add_argument('--model', type=str, default='darknet53')
     return parser.parse_args()
 
+# Do Xaiver-based weight initalization
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
         torch.nn.init.xavier_uniform_(m.weight)
@@ -65,11 +63,8 @@ def val(model, loader, classes):
     for classname, correct_count in correct_pred.items():
         accuracy = float(correct_count) / total_pred[classname]
         average_accuracy += accuracy
-        #print('Accuracy for class %s: %0.2f'%(classname, accuracy))
     
-    average_accuracy = average_accuracy/len(correct_pred)
-    #print("Overall Average: %0.2f"%(average_accuracy))
-    
+    average_accuracy = average_accuracy/len(correct_pred)    
     model.train()
     return average_accuracy
 
@@ -94,7 +89,6 @@ def load_train_model(inPath, model, optimizer, epoch, lr_sched):
 def train(model, opt):
     # hyperparameters:
     EPOCHS = opt.epochs
-    #LR = 0.001
     LR = opt.lr
     MOMENTUM = 0.9
     BATCH_SIZE=opt.batchsize
@@ -113,32 +107,26 @@ def train(model, opt):
     testloader = DataLoader(cifar10_test, batch_size=VAL_BATCH_SIZE)
 
     # training loop:
-    #optimizer = optim.SGD(model.parameters(), LR, MOMENTUM)
-    #optimizer = optim.Adam(model.parameters(), LR)
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=5e-2 )
     loss = nn.CrossEntropyLoss().cuda()
+
     # replace loss function with label smoothing
     model = model.cuda()
-
     cosine_annealing_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=opt.epochs)
     scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=5, after_scheduler=cosine_annealing_scheduler)
     
-    # # plot scheduler:
-    # _test = []
-    # for epoch in range(350):
-    #     _test.append(scheduler.get_lr()[0])
-    #     scheduler.step(epoch)
-    # print(_test)
-    # np.save('./graph_scripts/lr_dk53.npy', np.array(_test))
-    # exit()
-
-    #multistepLR = torch.optim.lr_scheduler.MultiStepLR(optimizer, [500,550,600])
-    #scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=1, after_scheduler=multistepLR)
-    #cosine_annealing_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
-    #scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=5, after_scheduler=cosine_annealing_scheduler)
-    #onestep_lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, LR, epochs=EPOCHS, steps_per_epoch=len(trainloader))
-    #scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=5, after_scheduler=onestep_lr_scheduler)
-
+    # plot scheduler:
+    '''
+    _test = []
+    for epoch in range(350):
+        _test.append(scheduler.get_lr()[0])
+        scheduler.step(epoch)
+    print(_test)
+    np.save('./graph_scripts/lr_dk53.npy', np.array(_test))
+    exit()
+    '''
+    
+    # create validation folder to save weights:
     best_val_score = 0.0
     if opt.exp == '':
         exp_folder = utils.create_exp_folder('runs')
@@ -148,6 +136,7 @@ def train(model, opt):
     weight_file = os.path.join("./runs/%s"%exp_folder, "best_darknet53_model.pth")
     writer = SummaryWriter('./runs/%s'%(exp_folder))
 
+    # Main training loop:
     for epoch in tqdm(range(EPOCHS), desc="Epoch"):
         train_loss = 0
         correct = 0
@@ -184,11 +173,8 @@ def train(model, opt):
             writer.add_scalar('val/acc', val_acc, epoch)
 
             if val_acc > best_val_score:
-                #save_train_model(model, optimizer, epoch, None, weight_file)
                 save_train_model(model, optimizer, epoch, scheduler, weight_file)
-                #torch.save(model.state_dict(), weight_file)
             save_train_model(model, optimizer, epoch, scheduler, os.path.join("./runs/%s"%exp_folder, "last_save.pth"))
-            #save_train_model(model, optimizer, epoch, None, os.path.join("./runs/%s"%exp_folder, "last_save.pth"))
 
     writer.close()
 
@@ -202,38 +188,12 @@ if __name__ == '__main__':
     
     opt = parseArgs()
 
-    # load CIFAR
-    '''
-    train_data = datasets.CIFAR10('./data', train=True, download=True)
-    # use np.concatenate to stick all the images together to form a 1600000 X 32 X 3 array
-    x = np.concatenate([np.asarray(train_data[i][0]) for i in range(len(train_data))])/255.0
-
-    # calculate the mean and std along the (0, 1) axes
-    train_mean = np.mean(x, axis=(0, 1))
-    train_std = np.std(x, axis=(0, 1))
-    # the the mean and std
-    print(train_mean, train_std)
-    '''
-
-    # make a model:
-    #model = Darknet53(1000)
-    #model = MSADarknet53(1000)
-
-    # pretrained imagenet:
-    #model.load_state_dict(torch.load('model_best.pth.tar')['state_dict'])
-    #model.load_custom_state_dict(torch.load('model_best.pth.tar')['state_dict'])
-    
-    # change fc layer:
-    #model.fc = nn.Linear(1024, 100)
-    #freeze_pretrained(model)
-
     # no pretrained weights:
     if opt.model == 'darknet53':
+        # create model here:
         model = Darknet53(10)
         model.apply(weights_init)
     elif opt.model == 'msa_darknet53':
+        # create MSA version of darknet:
         model = MSADarknet53(10)
-    elif opt.model == 'msa_darknet53_2':
-        model = MSADarknet53_2(10)
-
     train(model, opt)

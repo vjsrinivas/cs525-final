@@ -12,6 +12,7 @@ from torchvision.ops import stochastic_depth
 
 import torch.optim as optim
 
+# Conv block:
 def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, xaiver=False):
     _ret = nn.Sequential(
         nn.Conv2d(in_num, out_num, kernel_size=kernel_size, stride=stride, padding=padding, bias=False),
@@ -19,6 +20,7 @@ def conv_batch(in_num, out_num, kernel_size=3, padding=1, stride=1, xaiver=False
         nn.LeakyReLU())
     return _ret
 
+# Residual Block
 class DarkResidualBlock(nn.Module):
     def __init__(self, in_channels):
         super(DarkResidualBlock, self).__init__()
@@ -35,6 +37,7 @@ class DarkResidualBlock(nn.Module):
         out += residual
         return out
 
+# Build normal Darknet53
 class Darknet53(nn.Module):
     def __init__(self, num_classes, init_xavier=False):
         super(Darknet53, self).__init__()
@@ -56,6 +59,7 @@ class Darknet53(nn.Module):
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(1024, self.num_classes)
 
+    # Feed forward behavior
     def forward(self, x):
         out = self.conv1(x)
         out = self.conv2(out)
@@ -81,6 +85,7 @@ class Darknet53(nn.Module):
         out = self.fc(out)
         return out
 
+    # create each stage
     def make_layer(self, block, in_channels, num_blocks):
         layers = []
         for i in range(0, num_blocks):

@@ -1,3 +1,5 @@
+# Trying to visaulize the attention map in the last MSA module:
+
 cd models/detectors/yolov3
 IMG=000111
 python3 viz.py \

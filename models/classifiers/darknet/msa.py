@@ -1,3 +1,4 @@
+# This code is taken from how-vit-works repo:
 ### Attention Blocks defined below:
 import torch
 from torch import nn, einsum
@@ -8,6 +9,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
+# The actual self-attetion mechnanism
 class Attention2d(nn.Module):
 
     def __init__(self, dim_in, dim_out=None, *,
@@ -39,13 +41,11 @@ class Attention2d(nn.Module):
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
         out = rearrange(out, 'b h (x y) d -> b (h d) x y', y=y)
 
-        # if not self.training:
-        #     self.post_attn = out
-
         out = self.to_out(out)
 
         return out, attn
 
+# The local attention applied to each patch
 class LocalAttention(nn.Module):
 
     def __init__(self, dim_in, dim_out=None, *,
@@ -79,6 +79,12 @@ class LocalAttention(nn.Module):
         d = i[None, :, :] - i[:, None, :]
 
         return d
+
+
+#######################################
+# This is the main inherited MSA!!!!!!#
+#######################################
+
 
 class AttentionBlockA(nn.Module):
     expansion = 4
@@ -119,6 +125,7 @@ class AttentionBlockA(nn.Module):
 
         return x
 
+# Create MSA:
 class AttentionBasicBlockA(AttentionBlockA):
     expansion = 1
 
@@ -131,6 +138,9 @@ def conv3x3(in_channels, out_channels, stride=1, groups=1):
 def convnxn(in_channels, out_channels, kernel_size, stride=1, groups=1, padding=0):
     return nn.Conv2d(in_channels, out_channels,
                      kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False)
+
+
+# I don't know what this does:
 
 class DropPath(nn.Module):
     def __init__(self, p, **kwargs):

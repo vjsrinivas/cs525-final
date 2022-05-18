@@ -23,6 +23,27 @@ We've made simple scripts to run the following trainings:
 For Darknet53-based training, simply just run the following command:
 ``python3 train_cifar_10.py``
 
+## Folder Structure:
+
+```
+- data
+|
+- graph_scripts
+|
+- models
+|__
+    - classifiers
+        |__
+            - darknet53 (all the darknet53 related training and validation)
+    - detectors
+        |__
+            - yolov3 (ultralytics)
+                |_ runs (stores all the runs for training and validation)
+|
+- runs (for Darknet53 only)
+```
+
+
 ## Experiment Weights
 
 You can download the weights of both Darknet53 and YOLOv3 MSAs here:

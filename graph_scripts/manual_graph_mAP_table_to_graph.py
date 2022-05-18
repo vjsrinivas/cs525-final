@@ -1,3 +1,5 @@
+# THIS GRAPHING CODE TAKES IN CSV FILES FOR ALL THE mAP FUNCTIONS FOR EACH NETWORK:
+
 import numpy as np
 # quick and dirty graph from table of mAPs for Dog and VOC:
 # MUST BE IN ORDER TO THE TITLES:

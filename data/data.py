@@ -47,6 +47,10 @@ def read_name_file(file):
         content = list(map(str.strip, f.readlines()))
     return content
 
+###########################################################################
+# MAKE NAMESPACES FOR EACH DATASET AND THEIR PREPROCESSING FUNCTIONS HERE:#
+###########################################################################
+
 OXFORD = SimpleNamespace(
     classes=read_name_file("data/cifar100.txt"),
 )

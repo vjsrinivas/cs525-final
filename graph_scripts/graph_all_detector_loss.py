@@ -1,3 +1,6 @@
+# THIS GRAPHING CODE TAKES IN CSV FILES FOR ALL THE LOSS FUNCTIONS FOR EACH NETWORK:
+# YOLOv3 and YOLOv3 MSA 1,2,3,4
+
 import matplotlib.pyplot as plt
 import pandas
 import os 
